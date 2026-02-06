@@ -83,12 +83,17 @@
                     EXIF.getData(file, function() {
                         const make = EXIF.getTag(this, "Make") || "";
                         const model = EXIF.getTag(this, "Model") || "";
+                        const lensModel = EXIF.getTag(this, "LensModel") || ""; // レンズの型番
+                        const focalLength = EXIF.getTag(this, "FocalLength"); // 焦点距離
                         const f = EXIF.getTag(this, "FNumber");
                         const s = EXIF.getTag(this, "ExposureTime");
                         const iso = EXIF.getTag(this, "ISOSpeedRatings");
                         const date = EXIF.getTag(this, "DateTimeOriginal") || "";
                         
-                        exifData = `${make} ${model} | f/${f} | ${s ? '1/' + Math.round(1/s) : ''}s | ISO ${iso} | ${date}`;
+                        let displayLens = lensModel ? ` | ${lensModel}` : "";
+                        let displayFocal = focalLength ? ` | ${focalLength}mm` : "";
+                        
+                        exifData = `${make} ${model}${displayLens}${displayFocal} | f/${f} | ${s ? '1/' + Math.round(1/s) : ''}s | ISO ${iso} | ${date}`;
                         render();
                     });
                 };
