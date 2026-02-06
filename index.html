@@ -32,6 +32,11 @@
             <input type="color" id="textColor" value="#ffffff">
         </div>
         <div class="control-group">
+            <label>
+                <input type="checkbox" id="multiplyMode"> サインを乗算で合成する
+            </label>
+        </div>
+        <div class="control-group">
             <button id="downloadBtn">画像を保存する</button>
         </div>
     </div>
@@ -47,10 +52,24 @@
         const signInput = document.getElementById('signInput');
         const downloadBtn = document.getElementById('downloadBtn');
         const textColorInput = document.getElementById('textColor');
+        const multiplyModeInput = document.getElementById('multiplyMode');
 
         let mainImage = null;
         let signImage = null;
         let exifData = "";
+
+        // ブラウザに保存されたサイン画像を読み込む
+        window.onload = () => {
+            const savedSign = localStorage.getItem('ryoma_signature');
+            if (savedSign) {
+                const img = new Image();
+                img.onload = () => {
+                    signImage = img;
+                    render();
+                };
+                img.src = savedSign;
+            }
+        };
 
         photoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -86,6 +105,7 @@
                 const img = new Image();
                 img.onload = () => {
                     signImage = img;
+                    localStorage.setItem('ryoma_signature', event.target.result);
                     render();
                 };
                 img.src = event.target.result;
@@ -94,6 +114,7 @@
         });
 
         textColorInput.addEventListener('input', render);
+        multiplyModeInput.addEventListener('change', render);
 
         function render() {
             if (!mainImage) return;
@@ -105,17 +126,30 @@
             const padding = canvas.width * 0.02;
             const fontSize = Math.round(canvas.width * 0.02);
             ctx.font = `${fontSize}px serif`;
+            
+            // テキストの縁取りを描画
+            ctx.lineWidth = fontSize * 0.15;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText(exifData, padding, canvas.height - padding);
+
+            // テキスト本体を描画
             ctx.fillStyle = textColorInput.value;
             ctx.textBaseline = 'bottom';
-
-            // EXIF Info (Bottom Left)
             ctx.fillText(exifData, padding, canvas.height - padding);
 
-            // Signature (Bottom Right)
+            // サインの描画
             if (signImage) {
                 const signW = canvas.width * 0.15;
                 const signH = (signImage.height / signImage.width) * signW;
+                
+                if (multiplyModeInput.checked) {
+                    ctx.globalCompositeOperation = 'multiply';
+                }
+                
                 ctx.drawImage(signImage, canvas.width - signW - padding, canvas.height - signH - padding, signW, signH);
+                
+                // 合成モードを元に戻す
+                ctx.globalCompositeOperation = 'source-over';
             }
         }
 
