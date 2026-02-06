@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Frame Gen</title>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f4f4f9; }
+        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        canvas { max-width: 100%; height: auto; border: 1px solid #ccc; display: block; margin: 0 auto; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .preview-container { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Photo Frame Gen 📸</h1>
+    <div class="controls">
+        <div class="control-group">
+            <label>写真を選択:</label>
+            <input type="file" id="photoInput" accept="image/*">
+        </div>
+        <div class="control-group">
+            <label>サイン画像を選択 (透過PNG推奨):</label>
+            <input type="file" id="signInput" accept="image/*">
+        </div>
+        <div class="control-group">
+            <label>テキストカラー:</label>
+            <input type="color" id="textColor" value="#ffffff">
+        </div>
+        <div class="control-group">
+            <button id="downloadBtn">画像を保存する</button>
+        </div>
+    </div>
+
+    <div class="preview-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const photoInput = document.getElementById('photoInput');
+        const signInput = document.getElementById('signInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const textColorInput = document.getElementById('textColor');
+
+        let mainImage = null;
+        let signImage = null;
+        let exifData = "";
+
+        photoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    mainImage = img;
+                    EXIF.getData(file, function() {
+                        const make = EXIF.getTag(this, "Make") || "";
+                        const model = EXIF.getTag(this, "Model") || "";
+                        const f = EXIF.getTag(this, "FNumber");
+                        const s = EXIF.getTag(this, "ExposureTime");
+                        const iso = EXIF.getTag(this, "ISOSpeedRatings");
+                        const date = EXIF.getTag(this, "DateTimeOriginal") || "";
+                        
+                        exifData = `${make} ${model} | f/${f} | ${s ? '1/' + Math.round(1/s) : ''}s | ISO ${iso} | ${date}`;
+                        render();
+                    });
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        signInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    signImage = img;
+                    render();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        textColorInput.addEventListener('input', render);
+
+        function render() {
+            if (!mainImage) return;
+
+            canvas.width = mainImage.width;
+            canvas.height = mainImage.height;
+            ctx.drawImage(mainImage, 0, 0);
+
+            const padding = canvas.width * 0.02;
+            const fontSize = Math.round(canvas.width * 0.02);
+            ctx.font = `${fontSize}px serif`;
+            ctx.fillStyle = textColorInput.value;
+            ctx.textBaseline = 'bottom';
+
+            // EXIF Info (Bottom Left)
+            ctx.fillText(exifData, padding, canvas.height - padding);
+
+            // Signature (Bottom Right)
+            if (signImage) {
+                const signW = canvas.width * 0.15;
+                const signH = (signImage.height / signImage.width) * signW;
+                ctx.drawImage(signImage, canvas.width - signW - padding, canvas.height - signH - padding, signW, signH);
+            }
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            if (!mainImage) return;
+            const link = document.createElement('a');
+            link.download = 'framed-photo.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        });
+    </script>
+</body>
+</html>
